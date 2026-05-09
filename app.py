@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 
 
 APP_NAME = "Ferretería Cloud ERP"
-APP_VERSION = "v1.0 Render MVP"
+APP_VERSION = "v1.1 Documentos Moderno"
 CHILE_TZ = ZoneInfo("America/Santiago")
 IVA_RATE = float(os.environ.get("IVA_RATE", "0.19"))
 SUPERIOR_USERNAME = os.environ.get("SUPERIOR_USERNAME", "gus").strip().lower()
@@ -354,6 +354,82 @@ class DeliveryLine(db.Model):
     status = db.Column(db.String(40), default="Pendiente")
 
 
+class DocumentSequence(db.Model):
+    __tablename__ = "erp_document_sequences"
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, nullable=False)
+    document_type = db.Column(db.String(60), nullable=False)
+    current_number = db.Column(db.Integer, default=0)
+    updated_at = db.Column(db.String(30), default=now_str)
+    __table_args__ = (db.UniqueConstraint("company_id", "document_type", name="uq_erp_sequence_company_type"),)
+
+
+class ERPDocument(db.Model):
+    __tablename__ = "erp_documents"
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, nullable=False)
+    document_type = db.Column(db.String(60), nullable=False)
+    document_label = db.Column(db.String(120), nullable=False)
+    document_number = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(40), default="Borrador")
+    rut = db.Column(db.String(40))
+    business_name = db.Column(db.String(220))
+    giro = db.Column(db.String(220))
+    branch_name = db.Column(db.String(120))
+    address = db.Column(db.String(240))
+    commune = db.Column(db.String(120))
+    city = db.Column(db.String(120))
+    phone = db.Column(db.String(80))
+    contact = db.Column(db.String(160))
+    seller = db.Column(db.String(160))
+    document_date = db.Column(db.String(20), default=today_str)
+    due_date = db.Column(db.String(20))
+    payment_form = db.Column(db.String(80))
+    sale_type = db.Column(db.String(80))
+    value_mode = db.Column(db.String(20), default="NETO")
+    reference = db.Column(db.String(180))
+    transport_config = db.Column(db.String(220))
+    destination_address = db.Column(db.String(240))
+    vehicle_plate = db.Column(db.String(40))
+    driver_rut = db.Column(db.String(40))
+    driver_name = db.Column(db.String(160))
+    carrier_rut = db.Column(db.String(40))
+    notes = db.Column(db.Text)
+    discount_global = db.Column(db.Float, default=0)
+    surcharge_global = db.Column(db.Float, default=0)
+    subtotal = db.Column(db.Float, default=0)
+    total_net = db.Column(db.Float, default=0)
+    total_exempt = db.Column(db.Float, default=0)
+    iva = db.Column(db.Float, default=0)
+    total_gross = db.Column(db.Float, default=0)
+    user_id = db.Column(db.Integer)
+    user_name = db.Column(db.String(160))
+    created_at = db.Column(db.String(30), default=now_str)
+    updated_at = db.Column(db.String(30), default=now_str)
+    __table_args__ = (db.UniqueConstraint("company_id", "document_type", "document_number", name="uq_erp_document_company_type_number"),)
+
+
+class ERPDocumentLine(db.Model):
+    __tablename__ = "erp_document_lines"
+    id = db.Column(db.Integer, primary_key=True)
+    document_id = db.Column(db.Integer, db.ForeignKey("erp_documents.id"), nullable=False)
+    product_id = db.Column(db.Integer)
+    sku = db.Column(db.String(80))
+    description = db.Column(db.String(420))
+    expiry_date = db.Column(db.String(20))
+    lot = db.Column(db.String(80))
+    qty = db.Column(db.Float, default=1)
+    unit_price = db.Column(db.Float, default=0)
+    discount_pct = db.Column(db.Float, default=0)
+    discount_type = db.Column(db.String(20), default="%")
+    exemption_indicator = db.Column(db.String(80))
+    cost_center = db.Column(db.String(80))
+    warehouse_code = db.Column(db.String(40))
+    subtotal = db.Column(db.Float, default=0)
+    total = db.Column(db.Float, default=0)
+    created_at = db.Column(db.String(30), default=now_str)
+
+
 # ============================================================
 # PERMISOS Y HELPERS
 # ============================================================
@@ -630,6 +706,23 @@ th{background:#f8fafc;color:#475569;text-transform:uppercase;font-size:11px;lett
 .login-card{width:100%;max-width:420px;background:rgba(255,255,255,.94);border-radius:26px;padding:32px;box-shadow:0 24px 80px rgba(2,6,23,.35)}
 .logo{height:44px;object-fit:contain}
 .kpi-line{display:flex;gap:10px;flex-wrap:wrap}.kpi-line .badge{font-size:12px}
+.doc-shell{background:white;border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:18px}
+.doc-title{background:linear-gradient(135deg,#0f5f9e,#0f766e);color:white;padding:10px 18px;text-align:center;font-size:18px;font-weight:900;letter-spacing:.02em}
+.doc-tabs{display:flex;flex-wrap:wrap;gap:4px;background:#eaf2fb;border:1px solid #b9d2ea;border-radius:14px;padding:6px;margin-bottom:14px}
+.doc-tabs a{padding:8px 10px;border-radius:10px;font-size:12px;font-weight:900;color:#0f172a}
+.doc-tabs a.active{background:#facc15;color:#0f172a;box-shadow:0 4px 12px rgba(15,23,42,.12)}
+.doc-section-bar{background:#1f6fa7;color:white;font-weight:900;text-transform:uppercase;font-size:12px;padding:8px 12px;margin:0 -20px 14px}
+.doc-compact input,.doc-compact select{height:32px;padding:5px 8px;border-radius:7px;font-size:12px}
+.doc-compact label{font-size:11px;margin-bottom:4px}
+.doc-detail-table{min-width:1280px;border-collapse:collapse;width:100%}
+.doc-detail-table th{background:#f1f5f9;color:#0f172a;font-size:11px;padding:6px}
+.doc-detail-table td{padding:5px;border-bottom:1px solid #e5e7eb}
+.doc-detail-table input,.doc-detail-table select{height:30px;border-radius:6px;padding:4px 6px;font-size:12px}
+.doc-totals{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+.doc-total-box{border:1px solid #dbe3ef;border-radius:12px;padding:12px;background:#f8fafc}
+.doc-total-row{display:flex;justify-content:space-between;padding:5px 0;font-weight:800}
+.doc-total-row.total{font-size:18px;color:#0f766e;border-top:1px solid #cbd5e1;margin-top:6px;padding-top:9px}
+
 @media(max-width:1000px){.topbar{align-items:flex-start;flex-direction:column}.form-row,.form-row-2,.form-row-3,.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}.brand{min-width:auto}}
 </style>
 </head>
@@ -694,6 +787,49 @@ def render_page(title, template, login_screen=False, **ctx):
         is_admin=is_admin(),
         is_superior=is_superior(),
     )
+
+
+
+DOCUMENT_TYPES = {
+    "factura": {"label": "FACTURA ELECTRÓNICA", "sii": "Tipo 33", "affects": "venta"},
+    "nota_credito": {"label": "NOTA DE CRÉDITO ELECTRÓNICA", "sii": "Tipo 61", "affects": "reversa"},
+    "guia_despacho": {"label": "GUÍA DE DESPACHO ELECTRÓNICA", "sii": "Tipo 52", "affects": "despacho"},
+    "nota_debito": {"label": "NOTA DE DÉBITO ELECTRÓNICA", "sii": "Tipo 56", "affects": "ajuste"},
+    "boleta": {"label": "BOLETA ELECTRÓNICA", "sii": "Tipo 39", "affects": "venta"},
+    "boleta_exenta": {"label": "BOLETA NO AFECTA O EXENTA ELECTRÓNICA", "sii": "Tipo 41", "affects": "venta_exenta"},
+    "factura_compra": {"label": "FACTURA DE COMPRA ELECTRÓNICA", "sii": "Tipo 46", "affects": "compra"},
+}
+
+
+def get_next_document_number(document_type):
+    company = current_company()
+    seq = DocumentSequence.query.filter_by(company_id=company.id, document_type=document_type).first()
+    current_seq = int(seq.current_number) if seq else 0
+    max_doc = db.session.query(db.func.max(ERPDocument.document_number)).filter_by(
+        company_id=company.id,
+        document_type=document_type
+    ).scalar() or 0
+    return max(int(current_seq), int(max_doc)) + 1
+
+
+def reserve_document_number(document_type, number):
+    company = current_company()
+    seq = DocumentSequence.query.filter_by(company_id=company.id, document_type=document_type).first()
+    if not seq:
+        seq = DocumentSequence(company_id=company.id, document_type=document_type, current_number=0)
+        db.session.add(seq)
+    if int(number or 0) > int(seq.current_number or 0):
+        seq.current_number = int(number)
+        seq.updated_at = now_str()
+    db.session.commit()
+
+
+def document_is_exempt(document_type):
+    return document_type == "boleta_exenta"
+
+
+def document_is_purchase(document_type):
+    return document_type == "factura_compra"
 
 
 # ============================================================
@@ -1571,23 +1707,241 @@ def deliveries():
 # IA, DTE, USUARIOS, AUDITORÍA
 # ============================================================
 
-@app.route("/dte")
+
+@app.route("/dte", methods=["GET", "POST"])
 @login_required
 @permission_required("dte")
 def dte():
-    return render_page("Documentos DTE", """
-    <h1>Documentos DTE</h1>
-    <div class="card">
-      <h2>Integración tributaria</h2>
-      <p>Diseñado para integrarse con Facturación.cl u otro proveedor DTE. Facturación.cl no será fuente de productos/stock; será motor de documentos tributarios.</p>
-      <ul>
-        <li>Obtener PDF / Link por folio.</li>
-        <li>Emitir factura, boleta, guía o nota de crédito en etapa futura.</li>
-        <li>Leer XML si se contrata getXMLDte.</li>
-        <li>Cruzar guías/facturas con despacho y stock.</li>
-      </ul>
+    company = current_company()
+    products = Product.query.filter_by(company_id=company.id, active=True).order_by(Product.sku).limit(800).all()
+    document_type = request.args.get("type", "factura")
+    if document_type not in DOCUMENT_TYPES:
+        document_type = "factura"
+
+    if request.method == "POST":
+        document_type = request.form.get("document_type", "factura")
+        if document_type not in DOCUMENT_TYPES:
+            document_type = "factura"
+
+        number = int(parse_float(request.form.get("document_number"), get_next_document_number(document_type)))
+        exists = ERPDocument.query.filter_by(company_id=company.id, document_type=document_type, document_number=number).first()
+        if exists:
+            flash(f"El documento {DOCUMENT_TYPES[document_type]['label']} N° {number} ya existe. No se puede duplicar.", "error")
+            return redirect(url_for("dte", type=document_type))
+
+        subtotal = total_net = total_exempt = iva_value = total_gross = 0.0
+        doc = ERPDocument(
+            company_id=company.id,
+            document_type=document_type,
+            document_label=DOCUMENT_TYPES[document_type]["label"],
+            document_number=number,
+            status="Borrador interno",
+            rut=request.form.get("rut", "").strip(),
+            business_name=request.form.get("business_name", "").strip(),
+            giro=request.form.get("giro", "").strip(),
+            branch_name=request.form.get("branch_name", "").strip(),
+            address=request.form.get("address", "").strip(),
+            commune=request.form.get("commune", "").strip(),
+            city=request.form.get("city", "").strip(),
+            phone=request.form.get("phone", "").strip(),
+            contact=request.form.get("contact", "").strip(),
+            seller=request.form.get("seller", current_user().full_name).strip(),
+            document_date=request.form.get("document_date", today_str()),
+            due_date=request.form.get("due_date", ""),
+            payment_form=request.form.get("payment_form", ""),
+            sale_type=request.form.get("sale_type", "Del Giro"),
+            value_mode=request.form.get("value_mode", "NETO"),
+            reference=request.form.get("reference", "").strip(),
+            transport_config=request.form.get("transport_config", "").strip(),
+            destination_address=request.form.get("destination_address", "").strip(),
+            vehicle_plate=request.form.get("vehicle_plate", "").strip().upper(),
+            driver_rut=request.form.get("driver_rut", "").strip(),
+            driver_name=request.form.get("driver_name", "").strip(),
+            carrier_rut=request.form.get("carrier_rut", "").strip(),
+            notes=request.form.get("notes", "").strip(),
+            user_id=current_user().id,
+            user_name=current_user().full_name,
+        )
+        db.session.add(doc)
+        db.session.flush()
+
+        for i in range(1, 16):
+            sku = request.form.get(f"sku_{i}", "").strip()
+            desc = request.form.get(f"desc_{i}", "").strip()
+            if not sku and not desc:
+                continue
+            product = product_by_sku(sku) if sku else None
+            if product:
+                desc = product.description
+            qty = parse_float(request.form.get(f"qty_{i}"), 1)
+            price = parse_float(request.form.get(f"price_{i}"), product.sale_price_gross if product else 0)
+            discount = parse_float(request.form.get(f"discount_{i}"), 0)
+            final_price = price * (1 - discount / 100)
+            line_total = final_price * qty
+
+            if document_is_exempt(document_type):
+                line_net = 0
+                line_exempt = line_total
+                line_iva = 0
+            else:
+                line_net = line_total / (1 + IVA_RATE) if line_total else 0
+                line_exempt = 0
+                line_iva = line_total - line_net
+
+            subtotal += line_total
+            total_net += line_net
+            total_exempt += line_exempt
+            iva_value += line_iva
+            total_gross += line_total
+
+            db.session.add(ERPDocumentLine(
+                document_id=doc.id,
+                product_id=product.id if product else None,
+                sku=sku,
+                description=desc,
+                expiry_date=request.form.get(f"expiry_{i}", ""),
+                lot=request.form.get(f"lot_{i}", ""),
+                qty=qty,
+                unit_price=price,
+                discount_pct=discount,
+                exemption_indicator=request.form.get(f"exemption_{i}", ""),
+                cost_center=request.form.get(f"cost_center_{i}", ""),
+                warehouse_code=request.form.get(f"warehouse_{i}", "001"),
+                subtotal=line_net,
+                total=line_total,
+            ))
+
+        doc.subtotal = subtotal
+        doc.total_net = total_net
+        doc.total_exempt = total_exempt
+        doc.iva = iva_value
+        doc.total_gross = total_gross
+        db.session.commit()
+        reserve_document_number(document_type, number)
+        write_audit("dte", "crear_borrador", "document", doc.id, "", f"{doc.document_label} {number}")
+        flash(f"Documento {doc.document_label} N° {number} creado como borrador interno. La emisión real DTE se conectará luego con Facturación.cl.", "success")
+        return redirect(url_for("dte", type=document_type))
+
+    next_number = get_next_document_number(document_type)
+    recent = ERPDocument.query.filter_by(company_id=company.id).order_by(ERPDocument.id.desc()).limit(10).all()
+    meta = DOCUMENT_TYPES[document_type]
+
+    return render_page("Documentos DTE", r"""
+    <h1>Documentos electrónicos / Panel DTE interno</h1>
+    <p>Interfaz inspirada en flujos modernos de emisión, adaptada al conocimiento levantado desde Random, POS, logística y Facturación.cl. Esta pantalla crea borradores internos; la emisión real se integrará después vía WebService/DTE.</p>
+
+    <div class="doc-tabs">
+      {% for key, cfg in doc_types.items() %}
+        <a class="{% if key == document_type %}active{% endif %}" href="{{ url_for('dte', type=key) }}">{{ cfg.label.replace(' ELECTRÓNICA','').replace(' ELECTRONICA','') }}</a>
+      {% endfor %}
     </div>
-    """)
+
+    <form method="post" class="doc-compact">
+      <input type="hidden" name="document_type" value="{{ document_type }}">
+      <div class="doc-shell">
+        <div class="doc-title">{{ meta.label }} ({{ meta.sii }})</div>
+        <div class="card" style="box-shadow:none;border:0;margin:0;">
+          <div class="doc-section-bar">Encabezado</div>
+          <div class="form-row">
+            <div><label>R.U.T.</label><input name="rut" placeholder="Ej: 76.123.456-7"></div>
+            <div><label>Razón Social</label><input name="business_name"></div>
+            <div><label>Giro</label><input name="giro"></div>
+            <div><label>Sucursal</label><input name="branch_name" value="Casa Matriz"></div>
+          </div>
+          <div class="form-row" style="margin-top:10px;">
+            <div><label>Dirección</label><input name="address"></div>
+            <div><label>Comuna</label><input name="commune"></div>
+            <div><label>Ciudad</label><input name="city"></div>
+            <div><label>Teléfono</label><input name="phone"></div>
+          </div>
+          <div class="form-row" style="margin-top:10px;">
+            <div><label>Contacto</label><input name="contact"></div>
+            <div><label>Vendedor</label><input name="seller" value="{{ user.full_name }}"></div>
+            <div><label>N° Documento automático</label><input name="document_number" value="{{ next_number }}" required></div>
+            <div><label>Fecha documento</label><input type="date" name="document_date" value="{{ today }}"></div>
+          </div>
+          <div class="form-row" style="margin-top:10px;">
+            <div><label>Fecha vencimiento</label><input type="date" name="due_date"></div>
+            <div><label>Forma de pago</label><select name="payment_form"><option>Contado</option><option>Crédito</option><option>Transferencia</option><option>Tarjeta</option></select></div>
+            <div><label>Tipo de venta</label><select name="sale_type"><option>Del Giro</option><option>Activo Fijo</option><option>Uso y Consumo</option></select></div>
+            <div><label>Valores unitarios</label><select name="value_mode"><option>NETO</option><option>BRUTO</option></select></div>
+          </div>
+
+          {% if document_type == 'guia_despacho' %}
+          <div class="doc-section-bar" style="margin-top:16px;">Configuración de despacho</div>
+          <div class="form-row">
+            <div><label>Traslado</label><input name="transport_config" placeholder="Venta, traslado interno, etc."></div>
+            <div><label>Dirección destino</label><input name="destination_address"></div>
+            <div><label>Patente</label><input name="vehicle_plate"></div>
+            <div><label>Nombre Chofer</label><input name="driver_name"></div>
+          </div>
+          <div class="form-row-2" style="margin-top:10px;">
+            <div><label>RUT Chofer</label><input name="driver_rut"></div>
+            <div><label>RUT Transportista</label><input name="carrier_rut"></div>
+          </div>
+          {% endif %}
+
+          <div class="doc-section-bar" style="margin-top:16px;">Detalle</div>
+          <datalist id="docProducts">{% for p in products %}<option value="{{ p.sku }}">{{ p.description }} · {{ p.sale_price_gross|money }}</option>{% endfor %}</datalist>
+          <div class="table-wrap">
+            <table class="doc-detail-table" id="docTable">
+              <tr>
+                <th>#</th><th>Código</th><th>Descripción</th><th>Fecha Cad.</th><th>Lote</th><th>Cantidad</th><th>Precio Unit.</th><th>Descuento</th><th>Indicador Exención</th><th>C. Costo</th><th>Bodega</th>
+              </tr>
+              {% for i in range(1,16) %}
+              <tr>
+                <td>{{ i }}</td>
+                <td><input name="sku_{{ i }}" list="docProducts"></td>
+                <td><input name="desc_{{ i }}"></td>
+                <td><input type="date" name="expiry_{{ i }}"></td>
+                <td><input name="lot_{{ i }}"></td>
+                <td><input name="qty_{{ i }}" value="{% if i == 1 %}1{% endif %}" inputmode="decimal"></td>
+                <td><input name="price_{{ i }}" inputmode="decimal"></td>
+                <td><input name="discount_{{ i }}" value="0" inputmode="decimal"></td>
+                <td><input name="exemption_{{ i }}" placeholder="---"></td>
+                <td><input name="cost_center_{{ i }}"></td>
+                <td><input name="warehouse_{{ i }}" value="001"></td>
+              </tr>
+              {% endfor %}
+            </table>
+          </div>
+
+          <div class="doc-section-bar" style="margin-top:16px;">Totales y observaciones</div>
+          <div class="doc-totals">
+            <div>
+              <label>Observaciones</label>
+              <textarea name="notes" placeholder="Observaciones internas o comerciales"></textarea>
+              <label style="margin-top:10px;">Referenciar documento</label>
+              <input name="reference" placeholder="Orden de compra, nota de pedido, contrato, documento relacionado">
+            </div>
+            <div class="doc-total-box">
+              <div class="doc-total-row"><span>Sub-Total</span><span>Se calculará al guardar</span></div>
+              <div class="doc-total-row"><span>Total Neto</span><span>{{ 0|money }}</span></div>
+              <div class="doc-total-row"><span>Total Exento</span><span>{{ 0|money }}</span></div>
+              <div class="doc-total-row"><span>IVA 19%</span><span>{{ 0|money }}</span></div>
+              <div class="doc-total-row total"><span>Total</span><span>{{ 0|money }}</span></div>
+              <div class="actions" style="justify-content:flex-end;">
+                <button class="btn btn-secondary" type="button" onclick="alert('Vista previa PDF se habilitará en la siguiente fase.')">Vista previa</button>
+                <button class="btn btn-primary">Guardar borrador interno</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <div class="card">
+      <h2>Últimos documentos del periodo</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>ID</th><th>Documento</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Usuario</th><th>Fecha</th></tr>
+        {% for d in recent %}
+        <tr><td>{{ d.id }}</td><td><b>{{ d.document_label }}</b><br>N° {{ d.document_number }}</td><td>{{ d.business_name }}</td><td>{{ d.total_gross|money }}</td><td><span class="badge info">{{ d.status }}</span></td><td>{{ d.user_name }}</td><td>{{ d.created_at }}</td></tr>
+        {% else %}
+        <tr><td colspan="7" class="muted">Sin documentos creados.</td></tr>
+        {% endfor %}
+      </table></div>
+    </div>
+    """, document_type=document_type, doc_types=DOCUMENT_TYPES, meta=meta, next_number=next_number, products=products, recent=recent, today=today_str(), range=range, user=current_user())
 
 
 @app.route("/ai", methods=["GET", "POST"])
